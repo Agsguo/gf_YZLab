@@ -1,0 +1,122 @@
+
+####### 单细胞转录组上游分析 #######
+
+# 1.将原始数据文件链接到本地目录下
+
+# 创建目标目录，如果不存在
+
+mkdir -p ./FLZ_Raw_data/
+
+# 链接到本地目录下
+
+for i in  /home/lzfan/scrnaseq/2020cellreports/E*
+do
+ ln -s "$i" ./FLZ_Raw_data/
+done  
+
+# 2.进行数据质控
+
+  ### 2.使用Fastp进行数据质控
+# 制作sample_name.txt
+ls FLZ_Raw_data/ |awk -F "_" '{print $1}'|sort -u >Sample_name.txt
+
+# 创建质控输出目录
+mkdir -p ./00.QC/
+mkdir -p FLZ_Clean_data/
+
+# 默认参数为：-Q 33 -W 4  -g 10 -X 10 -l 15 -Y 30 -w 90 -u 40 -n 5 -e 0 -Y 30 -c 30ll
+# 进行质控
+for i in $(cat Sample_name.txt)
+do
+echo "Run_Fastp:$i start！"
+# -i;-I表示输入的双端测序数据；-o;-O表示输出的双端测序数据
+fastp -i ./FLZ_Raw_data/"$i"_1.fastq.gz -I ./FLZ_Raw_data/"$i"_2.fastq.gz \
+-o ./FLZ_Clean_data/"$i"_R1.clean.trimmed.fq.gz -O ./FLZ_Clean_data/"$i"_R2.clean.trimmed.fq.gz \
+-h ./00.QC/"$i".clean.trimmed.html -w 90
+ done
+
+ ##使用mutiqc将所有质控报告收集整合
+multiqc ./
+~
+
+# 3.使用Cellranger进行定量工作
+
+## （1）构建参考基因组索引
+## 未对基因进行过滤，直接构建参考基因组
+cellranger mkref \
+  --genome=huxu \
+  --fasta=/home/fguo/gf_workstation/Reference_genome/huxu_genome.fa \
+  --genes=/home/fguo/gf_workstation/Reference_genome/huxu.gff \
+  --output-dir huxu_index
+## （2）进行批量定量工作
+# 将原始数据文件后缀改成CellRanger可以识别的格式文件 
+# R2
+rename 's/.R2.fastq.gz/_S1_L001_R2_001.fastq.gz/' *.R2.fastq.gz
+## 脚本：Step3.run_cellranger.sh
+
+# 定义一个函数来运行 cellranger
+run_cellranger() {
+    local sample="$1"
+    echo "Processing sample: ${sample}"
+    
+    nohup cellranger count \
+      --id="${sample}" \
+      --sample="${sample}" \
+      --fastqs="/home/fguo/gf_workstation/03.Single_cell_analysis/FLZ_Clean_data" \
+      --transcriptome="/home/fguo/gf_workstation/03.Single_cell_analysis/huxu_index" \
+      --localcores=20 \
+      --output-dir="${sample}_output" \
+      --nosecondary \
+      --expect-cells=5000 \
+      --create-bam=true &
+
+    echo "Cellranger job for ${sample} started in the background."
+}
+
+# 主程序
+main() {
+    # 样本名称列表文件路径
+    local sample_list="/home/fguo/gf_workstation/03.Single_cell_analysis/01.Count_Sample_name.list"
+
+    # 检查样本名称列表文件是否存在
+    if [[ ! -f "${sample_list}" ]]; then
+        echo "Error: Sample name list file '${sample_list}' not found!"
+        exit 1
+    fi
+
+    # 逐行读取样本名称并调用 run_cellranger 函数
+    while IFS= read -r sample || [[ -n "$sample" ]]; do
+        if [[ -z "$sample" ]]; then
+            continue  # 跳过空行
+        fi
+        echo "Starting Cellranger for sample: $sample"
+        run_cellranger "$sample"
+    done < "${sample_list}"
+
+    # 等待所有后台任务完成
+    wait
+    echo "All Cellranger jobs completed."
+}
+
+# 执行主程序
+main
+
+##### 结果存放在 E10_5-F/outs/filtered_feature_bc_matrix 目录下 ######
+后续使用R语言进行个性化分析！
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+  
