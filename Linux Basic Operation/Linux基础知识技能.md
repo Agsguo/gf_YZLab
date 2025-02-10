@@ -567,3 +567,33 @@ find -name "*.png" |wc -l
 du -sh *
 ```
 ## 可以使用Markdown对文件进行修改
+
+
+### 使用ANNOVAR进行注释：
+
+```shell
+## 进行软件安装
+# 软件安装
+# 登录 https://www.openbioinformatics.org/annovar/annovar_download_form.php 填写教育邮箱注册后，前往邮箱下载
+# 直接解压使用
+
+# 步骤1：格式转换
+# 下载安装 gtfToGenePred
+https://link.zhihu.com/?target=http%3A//hgdownload.soe.ucsc.edu/admin/exe/linux.x86_64/gtfToGenePred
+# 增加权限：chmod u+x 
+
+# 用于将 GTF 文件（Gene Transfer Format）转换为 GenePred 格式的工具。GTF 文件通常包含基因注释信息，而 GenePred 格式是一种更简洁的基因注释格式
+gtfToGenePred -genePredExt ../data/genomes/Huxu.gtf  Huxu_refGene.txt
+
+# GenePred 文件中描述的基因或转录本对应的序列 (表格转换)
+retrieve_seq_from_fasta.pl --format refGene --seqfile ../data/genomes/Huxu.fa Huxu_refGene.txt --out Huxu_refGeneMrna.fa
+
+# 进行注释
+annotate_variation.pl -geneanno --neargene 2000 -buildver Huxu -dbtype refGene -outfile SV_annovar.output -exonsort SV_annovar.input ./
+# -geneanno：根据基因进行注释
+# --neargene 2000：上下游2000bp因为i
+# -buildver
+# -dbtype: 数据库类型
+# -outfile：输出文件
+
+## 注释
