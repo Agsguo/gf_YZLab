@@ -80,3 +80,50 @@ head(diff_genes)
 
 # 可选：保存结果到新文件
 write.csv(diff_genes, "2025-01-08-鸡胚胎时空组注释_Top20_E2.5.diff_genes_replaced.csv")
+
+####### 进行Marker基因列表的匹配 ######
+
+# 读取数据
+
+marker_genes <- read.csv("Marker基因替换.csv")
+
+# 初始化diff_genes中的Cell_Type列为空
+diff_genes$Cell_Type <- NA
+
+# 去除diff_genes中gene列的"gene-"前缀
+diff_genes$gene <- sub("gene-", "", diff_genes$gene)
+
+# 创建一个从基因到细胞类型的映射表
+gene_to_celltype <- list()
+
+# 遍历marker_genes的每一列（每个细胞类型）
+for (cell_type in colnames(marker_genes)) {
+  # 获取当前细胞类型的marker基因列表（移除NA值）
+  markers <- na.omit(marker_genes[[cell_type]])
+  
+  # 将每个marker基因映射到对应的细胞类型
+  for (marker in markers) {
+    # 如果基因已存在于映射表中，追加细胞类型；否则创建新列表
+    if (is.null(gene_to_celltype[[marker]])) {
+      gene_to_celltype[[marker]] <- cell_type
+    } else {
+      gene_to_celltype[[marker]] <- paste(gene_to_celltype[[marker]], cell_type, sep = ",")
+    }
+  }
+}
+
+# 将细胞类型匹配到diff_genes
+for (i in 1:nrow(diff_genes)) {
+  gene <- diff_genes$gene[i]
+  if (!is.null(gene_to_celltype[[gene]])) {
+    diff_genes$Cell_Type[i] <- gene_to_celltype[[gene]]
+  }
+}
+
+# 查看结果
+head(diff_genes)
+
+# 保存结果到新文件
+write.csv(diff_genes, "2024-11-19-单细胞大类-E2.5-top20.diff_genes_replaced_MarkerCellType.csv")
+
+
