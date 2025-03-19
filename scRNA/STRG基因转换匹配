@@ -1,1 +1,82 @@
 
+### 进行STRG基因的匹配 ###
+
+## 差异基因的格式
+p_val	avg_log2FC	pct.1	pct.2	p_val_adj	cluster	gene
+0	2.300623109	0.978	0.263	0	0	gene-CRABP1
+0	1.844496403	0.91	0.365	0	0	gene-CYTL1
+0	1.206905258	0.792	0.108	0	0	gene-TFAP2A
+0	1.184670022	0.53	0.04	0	0	gene-DLX2
+0	1.1171189	0.863	0.389	0	0	gene-NR2F1
+0	1.10988099	0.911	0.395	0	0	gene-TWIST1
+0	1.025649563	0.782	0.289	0	0	gene-PCP4
+0	1.006613581	0.535	0.081	0	0	gene-ALX1
+0	0.962631298	0.566	0.136	0	0	STRG.16983
+
+## 替换基因列表的格式
+STRG name	Possible genes	gene
+STRG.74514	STRG.74514-gene-ACE	gene-ACE
+STRG.47158	STRG.47158-gene-ACTN1	gene-ACTN1
+STRG.20716	STRG.20716	gene-ALDH5A1
+STRG.2987	STRG.2987	gene-AMIGO2
+STRG.29637	STRG.29637	gene-ANAPC1
+STRG.82539	STRG.82539	gene-ANKRA2
+STRG.74204	STRG.74204	gene-ANP32E
+STRG.73435	gene-APOA2-STRG.73435	gene-APOA2
+STRG.76980	STRG.76980-gene-APOF	gene-APOF
+STRG.51541	STRG.51541	gene-ARL4C
+STRG.9179	STRG.9179	gene-ASB9
+STRG.6682	STRG.6682	gene-ATP1A1
+STRG.56044	STRG.56044-STRG.56046-gene-MASP1	gene-BCL6
+STRG.56046	STRG.56044-STRG.56046-gene-MASP1	gene-BCL6
+STRG.62470	STRG.62470-gene-BMERB1	gene-BMERB1
+
+## 如果差异基因列表中cluster gene列中与替换基因列表中的STRG name还有Possible genes列由对应关系的话，将替换基因列表中gene列替换差异基因的gene列
+
+R 语言代码
+
+
+# 导入数据
+setwd(dir="E:/崖州湾工作记录/深圳华大工作记录/时空组注释/基因覆盖情况与注释信息/STRG替换")
+list.files()
+rm(list=ls())
+#导入包
+library(dplyr)
+
+# 加载所需的包
+library(dplyr)
+
+# 差异基因文件
+diff_genes <- read.csv("2025-01-08-鸡胚胎时空组注释_Top20_E2.5.merge.sorted_gene.csv")
+# 替换文件
+replace_genes <- read.csv("top50_STRG_result.csv")
+
+# 创建替换用的查找表
+# 将STRG name和Possible genes作为key，gene作为value
+lookup_table <- c()
+for (i in 1:nrow(replace_genes)) {
+  # 添加STRG name到查找表
+  lookup_table[replace_genes$STRG.name[i]] <- replace_genes$gene[i]
+  # 添加Possible genes到查找表（如果不是NA）
+  if (!is.na(replace_genes$Possible.genes[i])) {
+    lookup_table[replace_genes$Possible.genes[i]] <- replace_genes$gene[i]
+  }
+}
+
+# 替换差异基因列表中的gene列
+for (i in 1:nrow(diff_genes)) {
+  # 获取当前gene值
+  current_gene <- diff_genes$gene[i]
+  
+  # 检查是否在查找表中存在对应关系
+  if (!is.na(lookup_table[current_gene])) {
+    # 如果存在对应关系，则替换
+    diff_genes$gene[i] <- lookup_table[current_gene]
+  }
+}
+
+# 查看结果
+head(diff_genes)
+
+# 可选：保存结果到新文件
+write.csv(diff_genes, "2025-01-08-鸡胚胎时空组注释_Top20_E2.5.diff_genes_replaced.csv")
